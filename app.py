@@ -134,7 +134,24 @@ def create_tables():
     conn.commit()
     conn.close()
     print("Database tables created successfully!")
-
+    
+def enhance_database():
+    """Run database enhancements"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Read and execute the enhancement SQL
+    try:
+        with open('enhance_database.sql', 'r') as f:
+            sql_commands = f.read()
+            cursor.executescript(sql_commands)
+        conn.commit()
+        print("Database enhanced successfully!")
+    except Exception as e:
+        print(f"Enhancement error: {e}")
+    finally:
+        conn.close()
+        
 def init_database():
     """Initialize database with sample data if empty"""
     conn = get_db_connection()
@@ -613,7 +630,7 @@ if __name__ == '__main__':
     
     # Create tables first
     create_tables()
-    
+    enhance_database()  # Add this line
     # Initialize database with sample data
     init_database()
     
