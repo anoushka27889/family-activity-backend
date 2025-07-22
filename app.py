@@ -20,6 +20,121 @@ def get_db_connection():
     conn.row_factory = sqlite3.Row  # Return rows as dictionaries
     return conn
 
+def create_tables():
+    """Create database tables if they don't exist"""
+    conn = get_db_connection()
+    cursor = conn.cursor()
+    
+    # Create activities table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS activities (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            description TEXT,
+            activity_type TEXT NOT NULL,
+            min_age INTEGER,
+            max_age INTEGER,
+            duration_minutes INTEGER,
+            cost_category TEXT DEFAULT 'unknown',
+            price_min DECIMAL(10,2),
+            price_max DECIMAL(10,2),
+            difficulty_level TEXT,
+            group_size_min INTEGER DEFAULT 1,
+            group_size_max INTEGER,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            is_active BOOLEAN DEFAULT 1
+        )
+    ''')
+    
+    # Create venues table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS venues (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            venue_type TEXT NOT NULL,
+            address TEXT,
+            city TEXT NOT NULL,
+            state TEXT,
+            zip_code TEXT,
+            country TEXT DEFAULT 'US',
+            latitude DECIMAL(10, 8),
+            longitude DECIMAL(11, 8),
+            phone TEXT,
+            website TEXT,
+            rating DECIMAL(3,2),
+            is_wheelchair_accessible BOOLEAN DEFAULT 0,
+            parking_available BOOLEAN DEFAULT 0,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+    ''')
+    
+    # Create data sources table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS data_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL,
+            source_type TEXT NOT NULL,
+            base_url TEXT,
+            api_key_required BOOLEAN DEFAULT 0,
+            rate_limit_per_hour INTEGER,
+            last_updated DATETIME,
+            is_active BOOLEAN DEFAULT 1
+        )
+    ''')
+    
+    # Create tags table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE,
+            category TEXT,
+            description TEXT
+        )
+    ''')
+    
+    # Create junction tables
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS activity_venues (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            activity_id INTEGER NOT NULL,
+            venue_id INTEGER NOT NULL,
+            FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE,
+            FOREIGN KEY (venue_id) REFERENCES venues(id) ON DELETE CASCADE,
+            UNIQUE(activity_id, venue_id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS activity_tags (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            activity_id INTEGER NOT NULL,
+            tag_id INTEGER NOT NULL,
+            FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE,
+            FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+            UNIQUE(activity_id, tag_id)
+        )
+    ''')
+    
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS activity_sources (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            activity_id INTEGER NOT NULL,
+            source_id INTEGER NOT NULL,
+            external_id TEXT,
+            source_url TEXT,
+            last_scraped DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (activity_id) REFERENCES activities(id) ON DELETE CASCADE,
+            FOREIGN KEY (source_id) REFERENCES data_sources(id) ON DELETE CASCADE,
+            UNIQUE(activity_id, source_id)
+        )
+    ''')
+    
+    conn.commit()
+    conn.close()
+    print("Database tables created successfully!")
+
 def init_database():
     """Initialize database with sample data if empty"""
     conn = get_db_connection()
@@ -30,6 +145,15 @@ def init_database():
     count = cursor.fetchone()[0]
     
     if count == 0:
+        print("Initializing database with sample data...")
+        
+        # Insert sample data sources first
+        cursor.execute('''
+            INSERT INTO data_sources (name, source_type, base_url, api_key_required)
+            VALUES ('Sample Data', 'manual', NULL, 0)
+        ''')
+        source_id = cursor.lastrowid
+        
         # Insert sample activities
         sample_activities = [
             {
@@ -175,6 +299,42 @@ def init_database():
                 'longitude': -122.4098,
                 'rating': 4.2,
                 'tags': ['indoor', 'educational', 'animals', 'marine_life', 'rainy_day']
+            },
+            {
+                'title': 'Oakland Zoo',
+                'description': 'Home to over 700 native and exotic animals with interactive experiences.',
+                'activity_type': 'educational',
+                'min_age': 0,
+                'max_age': 18,
+                'duration_minutes': 240,
+                'cost_category': 'medium',
+                'price_min': 20,
+                'price_max': 25,
+                'city': 'Oakland',
+                'venue_name': 'Oakland Zoo',
+                'address': '9777 Golf Links Rd, Oakland, CA',
+                'latitude': 37.7329,
+                'longitude': -122.1468,
+                'rating': 4.3,
+                'tags': ['outdoor', 'educational', 'animals', 'family_friendly']
+            },
+            {
+                'title': 'Chabot Space & Science Center',
+                'description': 'Interactive science exhibits, planetarium shows, and telescope viewing.',
+                'activity_type': 'educational',
+                'min_age': 4,
+                'max_age': 18,
+                'duration_minutes': 180,
+                'cost_category': 'medium',
+                'price_min': 15,
+                'price_max': 20,
+                'city': 'Oakland',
+                'venue_name': 'Chabot Space & Science Center',
+                'address': '10000 Skyline Blvd, Oakland, CA',
+                'latitude': 37.8183,
+                'longitude': -122.1810,
+                'rating': 4.4,
+                'tags': ['indoor', 'educational', 'science', 'space', 'rainy_day']
             }
         ]
         
@@ -197,12 +357,12 @@ def init_database():
             # Insert venue
             cursor.execute('''
                 INSERT INTO venues 
-                (name, address, city, latitude, longitude, rating, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                (name, address, city, latitude, longitude, rating, venue_type, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             ''', (
                 activity['venue_name'], activity['address'], activity['city'],
                 activity['latitude'], activity['longitude'], activity['rating'],
-                datetime.now(), datetime.now()
+                activity['activity_type'], datetime.now(), datetime.now()
             ))
             
             venue_id = cursor.lastrowid
@@ -212,6 +372,12 @@ def init_database():
                 INSERT INTO activity_venues (activity_id, venue_id)
                 VALUES (?, ?)
             ''', (activity_id, venue_id))
+            
+            # Link activity to data source
+            cursor.execute('''
+                INSERT INTO activity_sources (activity_id, source_id, external_id, source_url)
+                VALUES (?, ?, ?, ?)
+            ''', (activity_id, source_id, f'sample_{activity_id}', 'sample_data'))
             
             # Insert tags
             for tag_name in activity['tags']:
@@ -233,6 +399,8 @@ def init_database():
         
         conn.commit()
         print("Database initialized with sample data!")
+    else:
+        print(f"Database already has {count} activities")
     
     conn.close()
 
@@ -441,9 +609,15 @@ def health_check():
     })
 
 if __name__ == '__main__':
-    # Initialize database
+    print("Starting Family Activity API...")
+    
+    # Create tables first
+    create_tables()
+    
+    # Initialize database with sample data
     init_database()
     
     # Run the server
     port = int(os.environ.get('PORT', 5000))
+    print(f"Server running on port {port}")
     app.run(host='0.0.0.0', port=port, debug=True)
