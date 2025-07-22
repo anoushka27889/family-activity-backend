@@ -625,7 +625,7 @@ def health_check():
         'timestamp': datetime.now().isoformat()
     })
 
-@app.route('/api/collect/google-places', methods=['POST'])
+@app.route('/api/collect/google-places', methods=['GET', 'POST'])
 def trigger_google_collection():
     """Trigger Google Places data collection"""
     try:
