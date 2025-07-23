@@ -629,6 +629,16 @@ def health_check():
         'message': 'Family Activity API is running!',
         'timestamp': datetime.now().isoformat()
     })
+@app.route('/api/collect/multi-city-smart', methods=['GET'])
+def collect_multi_city_smart():
+    """Collect comprehensive data for all cities with smart duration"""
+    try:
+        from multi_city_smart_collector import run_multi_city_smart_collection
+        result = run_multi_city_smart_collection()
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({'success': False, 'error': str(e)}), 500
+
 
 @app.route('/api/collect/google-places', methods=['GET', 'POST'])
 def collect_google_places_fixed():
