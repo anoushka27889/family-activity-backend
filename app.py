@@ -421,6 +421,11 @@ def init_database():
     
     conn.close()
 
+
+
+
+
+
 @app.route('/api/activities', methods=['GET'])
 def get_activities():
     """Get activities based on filters"""
@@ -626,18 +631,17 @@ def health_check():
     })
 
 @app.route('/api/collect/google-places', methods=['GET', 'POST'])
-def trigger_google_collection():
-    """Trigger Google Places data collection"""
+def collect_google_places_fixed():
+    """Fixed Google Places collection - much more reliable"""
     try:
-        run_google_places_collection()
-        return jsonify({
-            'success': True,
-            'message': 'Google Places collection completed'
-        })
+        from simple_google_collector import run_simple_google_collection
+        result = run_simple_google_collection()
+        return jsonify(result)
     except Exception as e:
         return jsonify({
             'success': False,
-            'error': str(e)
+            'error': str(e),
+            'message': 'Collection failed'
         }), 500
 
 if __name__ == '__main__':
