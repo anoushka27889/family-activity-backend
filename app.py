@@ -1,6 +1,6 @@
 # Backend API Server for Family Activity App
 # This connects your React app to the SQLite database with real activity data
-from google_places_enhanced import run_google_places_collection
+from simple_google_collector import run_simple_google_collection
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import sqlite3
@@ -643,6 +643,7 @@ def collect_google_places_fixed():
             'error': str(e),
             'message': 'Collection failed'
         }), 500
+
 
 if __name__ == '__main__':
     print("Starting Family Activity API...")
